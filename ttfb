@@ -88,15 +88,17 @@ DEBUG=""
 LOG=""
 NUM_REQUESTS=0
 VERBOSE=0
+FORMAT=""
 
-while getopts ":n:dl:v" OPTION
+while getopts ":n:dl:vf:" OPTION
 do
     case $OPTION in
         d) DEBUG=1 ;;
         l) LOG="$OPTARG" ;;
         n) NUM_REQUESTS=$OPTARG ;;
         v) VERBOSE=1 ;;
-        \?) echo -e "Usage: ttfb [options] url [url...]\n\t-d debug\n\t-l <log file> (infers -d) log response headers. Defaults to ./curl.log\n\t-n <number> of times to test time to first byte\n\t-v verbose output. Show response breakdown (DNS lookup, TLS handshake etc)" >&2
+        f) FORMAT="$OPTARG";;
+        \?) echo -e "Usage: ttfb [options] url [url...]\n\t-d debug\n\t-l <log file> (infers -d) log response headers. Defaults to ./curl.log\n\t-n <number> of times to test time to first byte\n\t-v verbose output. Show response breakdown (DNS lookup, TLS handshake etc)\n\t-f output format (default,csv)" >&2
             exit 1
             ;;
     esac
@@ -138,6 +140,8 @@ options+=(-L)
 options+=($HTTP_VERSION)
 options+=(-H 'Cache-Control: no-cache')
 options+=(-w 'echo DNS lookup: %{time_namelookup} TLS handshake: %{time_appconnect} TTFB including connection: %{time_starttransfer} TTFB: $(echo %{time_starttransfer} - %{time_appconnect} | bc) Total time: %{time_total} \n')
+
+
 if [ $DEBUG -eq 1 ]; then
   options+=(-D "${LOG_DIRECTORY}/${LOG}")
 fi
@@ -157,6 +161,14 @@ for URL in $URLS; do
 
   # if multiple requests have been specified, then show min, max & median values
   if [[ -n "$NUM_REQUESTS" && "$NUM_REQUESTS" -gt 1 ]]; then
+    if [[ $FORMAT == "csv" ]]; then
+      if [ $VERBOSE -eq 1 ]; then
+        printf "URL,DNS Lookup,TLS Handshake,TTFB including connection,TTFB,Total Time\n"
+      else
+        printf "URL,Fastest,Slowest,Median\n"
+      fi
+    fi
+
     ttfbs=()
     for i in $(seq $NUM_REQUESTS); do
 
@@ -174,7 +186,17 @@ for URL in $URLS; do
       request=$(eval $(curl "${options[@]}" "$URL"))
       ttfbs+=($(echo $request | grep -oE "TTFB: .{0,7}" | cut -d' ' -f2 | sort -n));
       if [ $VERBOSE -eq 1 ]; then
-        echo "$request" >&2
+        if [[ $FORMAT == "csv" ]]; then
+          # Regex: 
+            # \d? - optional leading "0" 
+            # \. - decimal place
+            # \d+ - 1 or more digits
+            # \s? - optional space after the digits (the last number does not have one)
+          echo $URL,$request | grep -oE '\d?\.\d+\s?' | awk -v ORS=, '{ print $1 }'
+          echo
+        else
+          echo "$request" >&2
+        fi
       else
         printf "." >&2
       fi
@@ -189,16 +211,39 @@ for URL in $URLS; do
       rm "${LOG_DIRECTORY}/${LOG}_"*
     fi
 
-    printf "\n" >&2
-    # sort the times
-    ttfbs=( $( printf "%s\n" "${ttfbs[@]}" | sort -n ) )
-    # show quickest, slowest and median fftb
-    printf "${SHOW_URL}\e[32mfastest \e[39m${ttfbs[0]} \e[91mslowest \e[39m${ttfbs[${#ttfbs[*]}-1]} \e[95mmedian \e[39m$(median ${ttfbs[*]})\e[39m\n";
+    if [[ $FORMAT == "csv" ]] && [ $VERBOSE -eq 0 ]; then
+      printf "\n" >&2
+      # sort the times
+      ttfbs=( $( printf "%s\n" "${ttfbs[@]}" | sort -n ) )
+      # show quickest, slowest and median fftb
+      printf "${URL},${ttfbs[0]},${ttfbs[${#ttfbs[*]}-1]},$(median ${ttfbs[*]})\n";
+    elif [[ ! $FORMAT == "csv" ]]; then
+      printf "\n" >&2
+      # sort the times
+      ttfbs=( $( printf "%s\n" "${ttfbs[@]}" | sort -n ) )
+      # show quickest, slowest and median fftb
+      printf "${SHOW_URL}\e[32mfastest \e[39m${ttfbs[0]} \e[91mslowest \e[39m${ttfbs[${#ttfbs[*]}-1]} \e[95mmedian \e[39m$(median ${ttfbs[*]})\e[39m\n";
+    fi
   else
    if [ $VERBOSE -eq 1 ]; then
-     echo -e $SHOW_URL $(eval $(curl "${options[@]}" "$URL"))
+      if [[ $FORMAT == "csv" ]]; then
+        printf "URL,DNS Lookup,TLS Handshake,TTFB including connection,TTFB,Total Time\n"
+        # Regex: 
+          # \d? - optional leading "0" 
+          # \. - decimal place
+          # \d+ - 1 or more digits
+          # \s? - optional space after the digits (the last number does not have one)
+        echo -e $URL,$(eval $(curl "${options[@]}" "$URL") | grep -oE '\d?\.\d+\s?' | awk -v ORS=, '{ print $1 }')
+      else
+        echo -e $SHOW_URL $(eval $(curl "${options[@]}" "$URL"))
+      fi
    else
-     echo -e $SHOW_URL $(eval $(curl "${options[@]}" "$URL") | grep -oE "TTFB: .{0,7}" | cut -d' ' -f2)
+      if [[ $FORMAT == "csv" ]]; then
+        printf "URL,Time\n"
+        echo -e $URL,$(eval $(curl "${options[@]}" "$URL") | grep -oE "TTFB: .{0,7}" | cut -d' ' -f2)
+      else
+        echo -e $SHOW_URL $(eval $(curl "${options[@]}" "$URL") | grep -oE "TTFB: .{0,7}" | cut -d' ' -f2)
+      fi
    fi
   fi
 done | column -s'|' -t

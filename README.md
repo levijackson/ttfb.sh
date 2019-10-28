@@ -10,6 +10,7 @@ Usage: ttfb [options] url [url...]
 	-l <log file> (infers -d) log response headers. Defaults to ./curl.log
 	-n <number> of times to test time to first byte
 	-v verbose output. Show response breakdown (DNS lookup, TLS handshake etc)
+	-f output format (default,csv)
 ```
 
 Implicitly follows a redirection chain using curl's `-L` option.
@@ -43,6 +44,7 @@ Usage: ttfb [options] url [url...]
 	-l <log file> (infers -d) log response headers. Defaults to ./curl.log
 	-n <number> of times to test time to first byte
 	-v verbose output. Show response breakdown (DNS lookup, TLS handshake etc)
+	-f output format (default,csv)
 ```
 
 ## Examples
@@ -144,6 +146,40 @@ x-lb-nocache: true
 x-msig: 24e37f81323984e4e45b8048f9e3c94a
 x-frame-options: SAMEORIGIN
 content-length: 1077454
+```
+
+Test CSV output - verbose single URL, one run
+```
+./ttfb -v -f "csv"  https://www.google.com
+
+URL,DNS Lookup,TLS Handshake,TTFB including connection,TTFB,Total Time
+https://www.google.com,0.031813,0.457148,0.639707,.182559,0.658254,
+```
+
+Test CSV output - single URL, one run
+```
+./ttfb -f "csv"  https://www.google.com
+
+URL,Time
+https://www.google.com,.185039
+```
+
+Test CSV output - verbose single URL, multiple runs
+```
+./ttfb -v -f "csv" -n "2"  https://www.google.com
+
+URL,DNS Lookup,TLS Handshake,TTFB including connection,TTFB,Total Time
+0.032701,0.473865,0.650617,.176752,0.667298,
+0.005113,0.443646,0.615265,.171619,0.636167,
+```
+
+Test CSV output - single URL, multiple runs
+
+```
+ ./ttfb -f "csv" -n "2"  https://www.google.com
+
+URL,Fastest,Slowest,Median
+https://www.google.com,.176589,.182264,.179426
 ```
 
 # More detail on time-to-first-byte
