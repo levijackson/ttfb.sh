@@ -187,12 +187,13 @@ for URL in $URLS; do
       ttfbs+=($(echo $request | grep -oE "TTFB: .{0,7}" | cut -d' ' -f2 | sort -n));
       if [ $VERBOSE -eq 1 ]; then
         if [[ $FORMAT == "csv" ]]; then
+          echo -n $URL,
           # Regex: 
             # \d? - optional leading "0" 
             # \. - decimal place
             # \d+ - 1 or more digits
             # \s? - optional space after the digits (the last number does not have one)
-          echo $URL,$request | grep -oE '\d?\.\d+\s?' | cut -d ':' -f2 | awk -v ORS=, '{ print $1 }' | sed 's/.$//'
+          echo $request | grep -oE '\d?\.\d+\s?' | cut -d ':' -f2 | awk -v ORS=, '{ print $1 }' | sed 's/.$//'
           echo
         else
           echo "$request" >&2
