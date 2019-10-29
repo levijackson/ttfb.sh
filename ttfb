@@ -193,7 +193,7 @@ for URL in $URLS; do
             # \. - decimal place
             # \d+ - 1 or more digits
             # \s? - optional space after the digits (the last number does not have one)
-          echo $request | grep -oE '\d?\.\d+\s?' | cut -d ':' -f2 | awk -v ORS=, '{ print $1 }' | sed 's/.$//'
+          echo $request | grep -oE '[0-9]?\.[0-9]+\s?' | cut -d ':' -f2 | awk -v ORS=, '{ print $1 }' | sed 's/.$//'
           echo
         else
           echo "$request" >&2
@@ -234,7 +234,7 @@ for URL in $URLS; do
           # \. - decimal place
           # \d+ - 1 or more digits
           # \s? - optional space after the digits (the last number does not have one)
-        echo -e $URL,$(eval $(curl "${options[@]}" "$URL") | grep -oE '\d?\.\d+\s?' | cut -d ':' -f2 | awk -v ORS=, '{ print $1 }' | sed 's/.$//')
+        echo -e $URL,$(eval $(curl "${options[@]}" "$URL") | grep -oE '[0-9]?\.[0-9]+\s?' | cut -d ':' -f2 | awk -v ORS=, '{ print $1 }' | sed 's/.$//')
       else
         echo -e $SHOW_URL $(eval $(curl "${options[@]}" "$URL"))
       fi
